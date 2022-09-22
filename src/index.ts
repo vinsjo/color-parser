@@ -419,7 +419,7 @@ export function RGBToHSL(...rgba: number[]) {
 	const cmin = Math.min(r, g, b),
 		cmax = Math.max(r, g, b),
 		delta = cmax - cmin;
-	let [h, s, l, a] = HSLArray();
+	let [h, s, l] = HSLArray();
 	switch (cmax) {
 		case r:
 			h = divSafe(g - b, delta) % 6 || 0;
@@ -468,7 +468,7 @@ export function HSLToRGB(...hsla: number[]) {
 	// add to each channel to match lightness
 	const m = divSafe(l - c, 2);
 
-	let [r, g, b, a] = RGBArray();
+	let [r, g, b] = RGBArray();
 	const hueSegment = segmentMap(h, 6, 0, HSL_RANGE[0]);
 	switch (hueSegment) {
 		// hue between 0 and 60
