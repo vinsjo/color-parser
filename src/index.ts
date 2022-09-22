@@ -5,7 +5,9 @@ export type ColorStringMode = ColorStringType | 'rgb' | 'hsl' | 'hex';
 export type ColorArrayType = 'RGB' | 'HSL';
 export type ColorArray = [number, number, number, number];
 type CA = ColorArray;
-export type ColorChangeCallback = (rgba?: CA, hsla?: CA) => unknown;
+export type ColorChangeCallback =
+	| ((...args: unknown[]) => unknown)
+	| ((rgba: CA, hsla: CA) => unknown);
 export type ColorCombineOperator = '+' | '-' | '*' | '/';
 export type ColorArrayCombiner<T extends ColorArrayType> = T extends 'HSL'
 	? (hsla1: CA | number[], hsla2: CA | number[]) => CA
@@ -553,7 +555,7 @@ export function Color(colorStr: ColorName | string) {
 			? [HSLToRGB(...parsed), parsed]
 			: [parsed, RGBToHSL(...parsed)];
 	})();
-	let onChange: ((rgba?: CA, hsla?: CA) => unknown) | null = null;
+	let onChange: ColorChangeCallback | null = null;
 	function setRGB(values: number[]) {
 		if (!isArr(values) || !values.length) return;
 		let [r, g, b, a] = values;
@@ -689,7 +691,7 @@ export function Color(colorStr: ColorName | string) {
 		rgb: CA;
 		hsl: CA;
 		hex: string;
-		onChange?: (rgba?: CA, hsla?: CA) => unknown;
+		onChange?: ColorChangeCallback;
 		add: (color: CA, type?: ColorArrayType) => void;
 		sub: (color: CA, type?: ColorArrayType) => void;
 		mult: (color: CA, type?: ColorArrayType) => void;
