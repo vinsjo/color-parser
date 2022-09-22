@@ -1,6 +1,6 @@
 {
   "name": "@vinsjo/color-parser",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A package for parsing, converting and editing colors",
   "author": "Vincent Sjögren",
   "repository": {
