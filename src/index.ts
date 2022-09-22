@@ -14,8 +14,9 @@ export type ColorModifier = (color: CA, colorType?: ColorArrayType) => void;
 export type ColorToStringMethod = (outputMode?: ColorStringType) => string;
 //#endregion
 //#region constants
-export const RGB_RANGE: CA = [255, 255, 255, 1];
-export const HSL_RANGE: CA = [360, 100, 100, 1];
+export const ALPHA_RANGE = 1;
+export const RGB_RANGE = [255, 255, 255];
+export const HSL_RANGE = [360, 100, 100];
 export const HEX_RANGE = 255;
 export const PRECISION_ALPHA = 3;
 export const PATTERNS: Record<ColorStringType, RegExp> = {
@@ -25,10 +26,10 @@ export const PATTERNS: Record<ColorStringType, RegExp> = {
 };
 export const DEFAULT_COLORS = {
 	get RGB() {
-		return [0, 0, 0, RGB_RANGE[3]] as CA;
+		return [0, 0, 0, ALPHA_RANGE] as CA;
 	},
 	get HSL() {
-		return [0, HSL_RANGE[1], 0, HSL_RANGE[3]] as CA;
+		return [0, HSL_RANGE[1], 0, ALPHA_RANGE] as CA;
 	},
 	get HEX() {
 		return '#000000';
@@ -172,6 +173,7 @@ function replaceAtIndex<T>(arr: T[], value: T, index: number): T[] {
 	if (!isNum(index) || index < 0 || index >= arr.length) return [...arr];
 	return [...arr.slice(0, index), value, ...arr.slice(index + 1)];
 }
+//#endregion
 //#region arrays builders
 function colorArray(...values: [number, number, number, number]) {
 	const [a, b, c, d] = values;
@@ -179,25 +181,27 @@ function colorArray(...values: [number, number, number, number]) {
 }
 
 export function RGBArray(...values: number[]) {
-	if (!values.length) return DEFAULT_COLORS.RGB;
+	const defaultRGB = DEFAULT_COLORS.RGB;
+	if (!values.length) return defaultRGB;
 	let [r, g, b, a] = values;
-	[r, g, b] = [r, g, b].map((v, i, rgb) => {
-		return isNum(v) ? clamp(v, 0, RGB_RANGE[i]) : i > 0 ? rgb[0] : 0;
+	[r, g, b] = [r, g, b].map((v, i) => {
+		return isNum(v) ? clamp(v, 0, RGB_RANGE[i]) : defaultRGB[i];
 	});
 	a =
-		isNum(a) && a !== RGB_RANGE[3]
-			? clamp(a, 0, RGB_RANGE[3])
-			: RGB_RANGE[3];
+		isNum(a) && a !== ALPHA_RANGE
+			? clamp(a, 0, ALPHA_RANGE)
+			: defaultRGB[3];
 	return colorArray(r, g, b, a);
 }
 
 export function HSLArray(...values: number[]) {
-	if (!values.length) DEFAULT_COLORS.HSL;
+	const defaultHSL = DEFAULT_COLORS.HSL;
+	if (!values.length) return defaultHSL;
 	let [h, s, l, a] = values;
-	h = isNum(h) ? euclideanModulo(h, HSL_RANGE[0]) : 0;
-	s = isNum(s) ? clamp(s, 0, HSL_RANGE[1]) : HSL_RANGE[1];
-	l = isNum(l) ? clamp(l, 0, HSL_RANGE[2]) : 0;
-	a = isNum(a) ? clamp(a, 0, HSL_RANGE[3]) : HSL_RANGE[3];
+	h = isNum(h) ? euclideanModulo(h, HSL_RANGE[0]) : defaultHSL[0];
+	s = isNum(s) ? clamp(s, 0, HSL_RANGE[1]) : defaultHSL[1];
+	l = isNum(l) ? clamp(l, 0, HSL_RANGE[2]) : defaultHSL[2];
+	a = isNum(a) ? clamp(a, 0, ALPHA_RANGE) : defaultHSL[3];
 	return colorArray(h, s, l, a);
 }
 //#endregion
@@ -228,7 +232,7 @@ export function parseHEX(hexStr: string): CA | null {
 		values.push(parseInt(hexValLength === 2 ? v : v + v, 16));
 	}
 	let [r, g, b, a] = values;
-	if (isNum(a)) a = map(a, 0, HEX_RANGE, 0, RGB_RANGE[3], true);
+	if (isNum(a)) a = map(a, 0, HEX_RANGE, 0, ALPHA_RANGE);
 	return RGBArray(r, g, b, a);
 }
 
@@ -264,33 +268,46 @@ export function parseColor(
 //#endregion
 //#region manipulation
 //#region round
+
+function roundCA(values: number[], type: ColorArrayType) {
+	const [arrFn, defaultColor] =
+		type === 'HSL'
+			? [HSLArray, DEFAULT_COLORS.HSL]
+			: [RGBArray, DEFAULT_COLORS.RGB];
+	if (!isArr(values) || !values.length) return defaultColor;
+	let [a, b, c, alpha] = arrFn(...values);
+	[a, b, c] = [a, b, c].map((v) => Math.round(v));
+	alpha = roundFloat(alpha, PRECISION_ALPHA);
+	return colorArray(a, b, c, alpha);
+}
+
 export function roundRGB(...values: number[]) {
-	let [r, g, b, a] = RGBArray(...values);
-	[r, g, b] = [r, g, b].map((v) => Math.round(v));
-	a = roundFloat(a, PRECISION_ALPHA);
-	return colorArray(r, g, b, a);
+	return roundCA(values, 'RGB');
 }
 export function roundHSL(...values: number[]) {
-	let [h, s, l, a] = HSLArray(...values);
-	[h, s, l] = [h, s, l].map((v) => Math.round(v));
-	a = roundFloat(a, PRECISION_ALPHA);
-	return colorArray(h, s, l, a);
+	return roundCA(values, 'HSL');
 }
 //#endregion
 //#region map
 export function mapRGB(rgba: number[], low = 0, high = 1) {
-	if (!isArr(rgba)) return RGBArray(low, low, low, RGB_RANGE[3]);
+	if (!isArr(rgba) || !rgba.length) {
+		return RGBArray(low, low, low, ALPHA_RANGE);
+	}
 	let [r, g, b, a] = RGBArray(...rgba);
 	[r, g, b] = [r, g, b].map((v, i) => map(v, 0, RGB_RANGE[i], low, high));
+	a = map(a, 0, ALPHA_RANGE, low, high);
 	return colorArray(r, g, b, a);
 }
 
 export function mapHSL(hsla: number[], low = 0, high = 1) {
-	if (!isArr(hsla)) return HSLArray(low, low, low, HSL_RANGE[3]);
+	if (!isArr(hsla) || !hsla.length) {
+		return HSLArray(low, low, low, ALPHA_RANGE);
+	}
 	let [h, s, l, a] = HSLArray(...hsla);
 	h = map(h, 0, HSL_RANGE[0], low, high);
 	s = map(s, 0, HSL_RANGE[1], low, high);
 	l = map(l, 0, HSL_RANGE[2], low, high);
+	a = map(a, 0, ALPHA_RANGE, low, high);
 	return colorArray(h, s, l, a);
 }
 //#endregion
@@ -322,7 +339,7 @@ function combineCA(
 	if (!isArr(c1)) return isArr(c2) ? c2 : arrFn();
 	if (!isArr(c2) || !['+', '-', '*', '/'].includes(operator)) return c1;
 	const combined = arrFn(...c1).map((a, i) => {
-		if (!isNum(c2[i])) return a;
+		if (i === 3 || !isNum(c2[i])) return a;
 		const b = c2[i];
 		switch (operator) {
 			case '+':
@@ -348,6 +365,29 @@ const [addRGB, subRGB, multRGB, divRGB] = createCombiners('RGB');
 const [addHSL, subHSL, multHSL, divHSL] = createCombiners('HSL');
 export { addRGB, subRGB, multRGB, divRGB, addHSL, subHSL, multHSL, divHSL };
 //#endregion
+//#region modify
+/**
+ * Set curve using parabola
+ * @param strength number array with value for r, g, and b. recommended strength less than 1
+ */
+export function RGBTone(rgba: CA, strength: [number, number, number]) {
+	if (!isArr(rgba) || !rgba.length) return DEFAULT_COLORS.RGB;
+	if (!isArr(strength)) return rgba;
+	let [r, g, b] = rgba;
+	[r, g, b] = [r, g, b].map((v, i) => {
+		if (!isNum(strength[i]) || !strength[i] || !isNum(v)) return 0;
+		return parabola(v, 0, RGB_RANGE[i]) * strength[i];
+	});
+	return addRGB(rgba, [r, g, b, 0]);
+}
+/**
+ *
+ */
+export function RGBBrightness(rgba: CA, strength: number) {
+	if (!strength || !isNum(strength)) return rgba;
+	return RGBTone(rgba, [strength, strength, strength]);
+}
+//#endregion
 //#endregion
 //#region conversion
 export function RGBToHSL(...rgba: number[]) {
@@ -370,11 +410,7 @@ export function RGBToHSL(...rgba: number[]) {
 	h = map(h, 0, 6, 0, HSL_RANGE[0]);
 	s = map(divSafe(cmax + cmin, 2), 0, 1, 0, HSL_RANGE[1]);
 	l = map(divSafe(delta, 1 - Math.abs(2 * l - 1)), 0, 1, 0, HSL_RANGE[2]);
-	a =
-		RGB_RANGE[3] === HSL_RANGE[3]
-			? alpha
-			: map(alpha, 0, RGB_RANGE[3], 0, HSL_RANGE[3]);
-	return HSLArray(h, s, l, a);
+	return HSLArray(h, s, l, alpha);
 }
 
 export function RGBToHEX(...rgba: number[]) {
@@ -384,8 +420,8 @@ export function RGBToHEX(...rgba: number[]) {
 		r,
 		g,
 		b,
-		a !== RGB_RANGE[3]
-			? Math.round(map(a, 0, RGB_RANGE[3], 0, HEX_RANGE, true))
+		a !== ALPHA_RANGE
+			? Math.round(map(a, 0, ALPHA_RANGE, 0, HEX_RANGE, true))
 			: '',
 	].map((v) => {
 		if (!isNum(v)) return '';
@@ -444,11 +480,7 @@ export function HSLToRGB(...hsla: number[]) {
 			break;
 	}
 	[r, g, b] = [r, g, b].map((v, i) => map(v + m, 0, 1, 0, RGB_RANGE[i]));
-	a =
-		RGB_RANGE[3] === HSL_RANGE[3]
-			? alpha
-			: map(alpha, 0, HSL_RANGE[3], 0, RGB_RANGE[3]);
-	return RGBArray(r, g, b, a);
+	return RGBArray(r, g, b, alpha);
 }
 export function HSLToHEX(...hsla: number[]) {
 	return RGBToHEX(...HSLToRGB(...hsla));
@@ -467,14 +499,14 @@ export function HEXToHSL(hexStr: string) {
 //#region toString functions
 export function RGBToString(...values: number[]) {
 	const [r, g, b, a] = roundRGB(...values);
-	return a !== RGB_RANGE[3]
+	return a !== ALPHA_RANGE
 		? `rgba(${[r, g, b, a].join(',')})`
 		: `rgb(${[r, g, b].join(',')})`;
 }
 
 export function HSLToString(...values: number[]) {
 	const [h, s, l, a] = roundHSL(...values);
-	return a !== HSL_RANGE[3]
+	return a !== ALPHA_RANGE
 		? `hsla(${[h, s, l, a].join(',')})`
 		: `hsl(${[h, s, l].join(',')})`;
 }
@@ -493,7 +525,6 @@ export function Color(colorStr: string) {
 			: [parsed, RGBToHSL(...parsed)];
 	})();
 	let onChange: ((rgba?: CA, hsla?: CA) => unknown) | null = null;
-
 	function setRGB(values: number[]) {
 		if (!isArr(values) || !values.length) return;
 		let [r, g, b, a] = values;
@@ -527,18 +558,6 @@ export function Color(colorStr: string) {
 			};
 		}) as ColorModifier[];
 	})();
-	function setCurve(...strength: [number, number, number]) {
-		const str = Array(3)
-			.fill(0)
-			.map((v, i) => (isNum(strength[i]) ? strength[i] : v));
-		if (str.reduce((sum, v) => sum + v) === 0) return;
-		let [r, g, b, a] = rgba;
-		[r, g, b] = [r, g, b].map((v, i) => {
-			if (!str[i]) return v;
-			return parabola(v, 0, RGB_RANGE[i]) * str[i];
-		});
-		setRGB([r, g, b, a]);
-	}
 	function toString(outputMode?: ColorStringType) {
 		const mode: ColorStringType =
 			typeof outputMode === 'string' &&
@@ -568,6 +587,41 @@ export function Color(colorStr: string) {
 			isColor: {
 				value: true,
 			},
+			red: {
+				get: () => rgba[0],
+				set: (r: number) => replaceRGB(r, 0),
+				enumerable: true,
+			},
+			green: {
+				get: () => rgba[1],
+				set: (g: number) => replaceRGB(g, 1),
+				enumerable: true,
+			},
+			blue: {
+				get: () => rgba[2],
+				set: (b: number) => replaceRGB(b, 2),
+				enumerable: true,
+			},
+			alpha: {
+				get: () => rgba[3],
+				set: (a: number) => replaceRGB(a, 3),
+				enumerable: true,
+			},
+			hue: {
+				get: () => hsla[0],
+				set: (h: number) => replaceHSL(h, 0),
+				enumerable: true,
+			},
+			saturation: {
+				get: () => hsla[1],
+				set: (s: number) => replaceHSL(s, 0),
+				enumerable: true,
+			},
+			lightness: {
+				get: () => hsla[2],
+				set: (l: number) => replaceHSL(l, 0),
+				enumerable: true,
+			},
 			rgb: {
 				get: () => [...rgba] as CA,
 				set: (values: CA) => setRGB(values),
@@ -577,18 +631,6 @@ export function Color(colorStr: string) {
 				get: () => [...hsla] as CA,
 				set: (values: CA) => setHSL(values),
 				enumerable: true,
-			},
-			hue: {
-				get: () => hsla[0],
-				set: (hue: number) => {
-					setHSL([hue, hsla[1], hsla[2], hsla[3]]);
-				},
-			},
-			saturation: {
-				get: () => hsla[1],
-				set: (saturation: number) => {
-					setHSL([hsla[0], hsla[1], hsla[2], hsla[3]]);
-				},
 			},
 			hex: {
 				get: () => RGBToHEX(...rgba),
@@ -608,8 +650,15 @@ export function Color(colorStr: string) {
 			toString: { value: toString },
 		}
 	) as {
+		red: number;
+		green: number;
+		blue: number;
+		alpha: number;
+		hue: number;
+		saturation: number;
+		lightness: number;
 		rgb: CA;
-		HSL: CA;
+		hsl: CA;
 		hex: string;
 		onChange?: (rgba?: CA, hsla?: CA) => unknown;
 		add: (color: CA, type?: ColorArrayType) => void;
