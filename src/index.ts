@@ -536,7 +536,11 @@ export function HSLToString(...values: number[]) {
 //#endregion
 //#endregion
 //#region Color
-
+/**
+ * @param colorStr Accepts strings in following CSS rgb, hsl and hex formats.
+ * Also accepts CSS Color Names
+ * @see {@link https://www.npmjs.com/package/css-color-names}
+ */
 export function Color(colorStr: ColorName | string) {
 	let [rgba, hsla] = (() => {
 		if (Object.prototype.hasOwnProperty.call(cssColors, colorStr)) {
