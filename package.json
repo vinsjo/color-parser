@@ -26,6 +26,7 @@
     "dist"
   ],
   "scripts": {
+    "prebuild": "node prebuild.js",
     "build": "microbundle",
     "dev": "microbundle watch",
     "lint": "npx eslint src --ext .ts",
@@ -35,7 +36,8 @@
     "@typescript-eslint/eslint-plugin": "latest",
     "@typescript-eslint/parser": "latest",
     "eslint": "latest",
-    "microbundle": "latest"
+    "microbundle": "latest",
+    "css-color-names": "latest"
   },
   "browserslist": [
     "defaults and supports es6-module",
@@ -48,8 +50,5 @@
     "HSL",
     "HEX",
     "Microbundle"
-  ],
-  "dependencies": {
-    "css-color-names": "^1.0.1"
-  }
+  ]
 }

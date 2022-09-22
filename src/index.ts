@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+import cssColors from './css-colors';
 //#region types
 export type ColorStringType = 'RGB' | 'HSL' | 'HEX';
 export type ColorStringMode = ColorStringType | 'rgb' | 'hsl' | 'hex';
@@ -8,10 +8,11 @@ type CA = ColorArray;
 export type ColorChangeCallback = (rgba?: CA, hsla?: CA) => unknown;
 export type ColorCombineOperator = '+' | '-' | '*' | '/';
 export type ColorArrayCombiner<T extends ColorArrayType> = T extends 'HSL'
-	? (hsla1: CA, hsla2: CA) => CA
-	: (rgba1: CA, rgba2: CA) => CA;
+	? (hsla1: CA | number[], hsla2: CA | number[]) => CA
+	: (rgba1: CA | number[], rgba2: CA | number[]) => CA;
 export type ColorModifier = (color: CA, colorType?: ColorArrayType) => void;
 export type ColorToStringMethod = (outputMode?: ColorStringType) => string;
+export type ColorName = keyof typeof cssColors;
 //#endregion
 //#region constants
 export const ALPHA_RANGE = 1;
@@ -268,7 +269,6 @@ export function parseColor(
 //#endregion
 //#region manipulation
 //#region round
-
 function roundCA(values: number[], type: ColorArrayType) {
 	const [arrFn, defaultColor] =
 		type === 'HSL'
@@ -330,8 +330,8 @@ export function invertHEX(hexStr: string) {
 //#endregion
 //#region combine color arrays
 function combineCA(
-	c1: CA,
-	c2: CA,
+	c1: CA | number[],
+	c2: CA | number[],
 	operator: ColorCombineOperator,
 	colorType: ColorArrayType
 ) {
@@ -358,19 +358,24 @@ function combineCA(
 }
 function createCombiners<T extends ColorArrayType>(type: T) {
 	return (['+', '-', '*', '/'] as ColorCombineOperator[]).map((op) => {
-		return (c1: CA, c2: CA) => combineCA(c1, c2, op, type);
+		return (c1: CA | number[], c2: CA | number[]) =>
+			combineCA(c1, c2, op, type);
 	}) as ColorArrayCombiner<T>[];
 }
 const [addRGB, subRGB, multRGB, divRGB] = createCombiners('RGB');
 const [addHSL, subHSL, multHSL, divHSL] = createCombiners('HSL');
 export { addRGB, subRGB, multRGB, divRGB, addHSL, subHSL, multHSL, divHSL };
 //#endregion
-//#region modify
+//#region modify color arrays
 /**
- * Set curve using parabola
- * @param strength number array with value for r, g, and b. recommended strength less than 1
+ * Set tone using parabola curve
+ * @param rgba RGB Array
+ * @param strength number array with value for r, g, and b. recommended strength between -1 and 1
  */
-export function RGBTone(rgba: CA, strength: [number, number, number]) {
+export function RGBTone(
+	rgba: number[] | CA,
+	strength: [number, number, number]
+) {
 	if (!isArr(rgba) || !rgba.length) return DEFAULT_COLORS.RGB;
 	if (!isArr(strength)) return rgba;
 	let [r, g, b] = rgba;
@@ -381,11 +386,29 @@ export function RGBTone(rgba: CA, strength: [number, number, number]) {
 	return addRGB(rgba, [r, g, b, 0]);
 }
 /**
- *
+ * Set brightness using parabola curve
+ * @param rgba RGB array
+ * @param strength recommended strength between -1 and 1
  */
-export function RGBBrightness(rgba: CA, strength: number) {
+export function RGBBrightness(rgba: CA | number[], strength: number) {
 	if (!strength || !isNum(strength)) return rgba;
 	return RGBTone(rgba, [strength, strength, strength]);
+}
+/**
+ *
+ * @param rgba RGB Array
+ * @param strength recommended strength less than 1
+ */
+export function RGBContrastCurve(rgba: CA | number[], strength: number) {
+	if (!isArr(rgba) || !rgba.length) return DEFAULT_COLORS.RGB;
+	if (!strength || !isNum(strength)) return rgba;
+	const yMax = 3.465;
+	let [r, g, b] = rgba;
+	[r, g, b] = [r, g, b].map((v, i) => {
+		if (!isNum(v)) return 0;
+		return cubicBezier(v, 0, RGB_RANGE[i], 0, -yMax, yMax, 0) * strength;
+	});
+	return addRGB(rgba, [r, g, b, 0]);
 }
 //#endregion
 //#endregion
@@ -512,11 +535,13 @@ export function HSLToString(...values: number[]) {
 }
 //#endregion
 //#endregion
-
 //#region Color
 
-export function Color(colorStr: string) {
+export function Color(colorStr: ColorName | string) {
 	let [rgba, hsla] = (() => {
+		if (Object.prototype.hasOwnProperty.call(cssColors, colorStr)) {
+			return cssColors[colorStr];
+		}
 		const [type, parsed] = parseColor(colorStr);
 		return !type || !parsed
 			? [RGBArray(), HSLArray()]
