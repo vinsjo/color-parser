@@ -15,6 +15,24 @@ export type ColorArrayCombiner<T extends ColorArrayType> = T extends 'HSL'
 export type ColorModifier = (color: CA, colorType?: ColorArrayType) => void;
 export type ColorToStringMethod = (outputMode?: ColorStringType) => string;
 export type ColorName = keyof typeof cssColors;
+export type ColorInstance = {
+	red: number;
+	green: number;
+	blue: number;
+	alpha: number;
+	hue: number;
+	saturation: number;
+	lightness: number;
+	rgb: CA;
+	hsl: CA;
+	hex: string;
+	onChange?: ColorChangeCallback;
+	add: (color: CA, type?: ColorArrayType) => void;
+	sub: (color: CA, type?: ColorArrayType) => void;
+	mult: (color: CA, type?: ColorArrayType) => void;
+	div: (color: CA, type?: ColorArrayType) => void;
+	toString: (outputMode?: ColorStringType) => string;
+};
 //#endregion
 //#region constants
 export const ALPHA_RANGE = 1;
@@ -421,7 +439,7 @@ export function RGBToHSL(...rgba: number[]) {
 	const cmin = Math.min(r, g, b),
 		cmax = Math.max(r, g, b),
 		delta = cmax - cmin;
-	let [h, s, l] = HSLArray();
+	let [h, s, l] = [0, 0, 0];
 	switch (cmax) {
 		case r:
 			h = divSafe(g - b, delta) % 6 || 0;
@@ -433,9 +451,14 @@ export function RGBToHSL(...rgba: number[]) {
 			h = divSafe(r - g, delta) + 4;
 	}
 	h = map(h, 0, 6, 0, HSL_RANGE[0]);
-	s = map(divSafe(cmax + cmin, 2), 0, 1, 0, HSL_RANGE[1]);
-	l = map(divSafe(delta, 1 - Math.abs(2 * l - 1)), 0, 1, 0, HSL_RANGE[2]);
-	return HSLArray(h, s, l, alpha);
+	l = divSafe(cmax + cmin, 2);
+	s = divSafe(delta, 1 - Math.abs(2 * l - 1));
+	return HSLArray(
+		h,
+		map(s, 0, 1, 0, HSL_RANGE[1]),
+		map(l, 0, 1, 0, HSL_RANGE[2]),
+		alpha
+	);
 }
 
 export function RGBToHEX(...rgba: number[]) {
@@ -460,17 +483,14 @@ export function HSLToRGB(...hsla: number[]) {
 	if (!hsla.length) return DEFAULT_COLORS.RGB;
 	let [h, s, l, alpha] = HSLArray(...hsla);
 	s = normalize(s, 0, HSL_RANGE[1]);
-	l = normalize(s, 0, HSL_RANGE[2]);
+	l = normalize(l, 0, HSL_RANGE[2]);
 	// chroma / color intensity / strongest color
-	const c = s * (1 - Math.abs(2 * l - 1));
+	const c = (1 - Math.abs(2 * l - 1)) * s;
 	// second strongest color
-	const x = !c
-		? 0
-		: c * (1 - Math.abs((divSafe(h, HSL_RANGE[0] / 6) % 2) - 1));
+	const x = !h ? 0 : c * (1 - Math.abs(((h / (HSL_RANGE[0] / 6)) % 2) - 1));
 	// add to each channel to match lightness
-	const m = divSafe(l - c, 2);
-
-	let [r, g, b] = RGBArray();
+	const m = !c ? l : l - c / 2;
+	let [r, g, b] = [0, 0, 0];
 	const hueSegment = segmentMap(h, 6, 0, HSL_RANGE[0]);
 	switch (hueSegment) {
 		// hue between 0 and 60
@@ -495,6 +515,12 @@ export function HSLToRGB(...hsla: number[]) {
 		case 3:
 			r = 0;
 			g = x;
+			b = c;
+			break;
+		// hue between 240 and 300
+		case 4:
+			r = x;
+			g = 0;
 			b = c;
 			break;
 		// hue between 300 and 360
@@ -680,23 +706,6 @@ export function Color(colorStr: ColorName | string) {
 			div: { value: div },
 			toString: { value: toString },
 		}
-	) as {
-		red: number;
-		green: number;
-		blue: number;
-		alpha: number;
-		hue: number;
-		saturation: number;
-		lightness: number;
-		rgb: CA;
-		hsl: CA;
-		hex: string;
-		onChange?: ColorChangeCallback;
-		add: (color: CA, type?: ColorArrayType) => void;
-		sub: (color: CA, type?: ColorArrayType) => void;
-		mult: (color: CA, type?: ColorArrayType) => void;
-		div: (color: CA, type?: ColorArrayType) => void;
-		toString: (outputMode?: ColorStringType) => string;
-	};
+	) as ColorInstance;
 }
 //#endregion
