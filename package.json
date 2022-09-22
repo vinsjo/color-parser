@@ -1,0 +1,55 @@
+{
+  "name": "@vinsjo/color-parser",
+  "version": "1.0.0",
+  "description": "A package for parsing, converting and editing css colors",
+  "author": "Vincent Sjögren",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vinsjo/color-parser"
+  },
+  "license": "MIT",
+  "type": "module",
+  "source": "./src/index.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "umd:main": "./dist/index.umd.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.js",
+      "default": "./dist/index.modern.js"
+    }
+  },
+  "files": [
+    "src",
+    "dist"
+  ],
+  "scripts": {
+    "build": "microbundle",
+    "dev": "microbundle watch",
+    "lint": "npx eslint src --ext .ts",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "latest",
+    "@typescript-eslint/parser": "latest",
+    "eslint": "latest",
+    "microbundle": "latest"
+  },
+  "browserslist": [
+    "defaults and supports es6-module",
+    "maintained node versions"
+  ],
+  "keywords": [
+    "ESM",
+    "CJS",
+    "RGB",
+    "HSL",
+    "HEX",
+    "Microbundle"
+  ],
+  "dependencies": {
+    "css-color-names": "^1.0.1"
+  }
+}
