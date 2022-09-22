@@ -81,5 +81,9 @@ const target = path.join(process.cwd(), 'src/css-colors.ts');
    const cssColors = ${JSON.stringify(colors)};
    export default cssColors;
    `;
+	if (fs.existsSync(target)) {
+		const existing = fs.readFileSync(target, { encoding: 'utf-8' });
+		if (existing === output) return;
+	}
 	fs.writeFileSync(target, output, { encoding: 'utf-8' });
 })();
