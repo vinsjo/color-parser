@@ -562,9 +562,8 @@ export function RGBToString(...values: number[]) {
 
 export function HSLToString(...values: number[]) {
 	const [h, s, l, a] = roundHSL(...values);
-	return a !== ALPHA_RANGE
-		? `hsla(${[h, s, l, a].join(',')})`
-		: `hsl(${[h, s, l].join(',')})`;
+	const sl = [s, l].map((v) => `${v}%`).join(',');
+	return a !== ALPHA_RANGE ? `hsla(${h},${sl},${a})` : `hsl(${h},${sl})`;
 }
 //#endregion
 //#endregion
