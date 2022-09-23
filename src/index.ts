@@ -272,16 +272,19 @@ export function parseHSL(hslStr: string): CA | null {
 }
 
 export function parseColor(
-	colorStr: string
-): ['HSL' | 'RGB' | null, CA | null] {
+	colorStr: string | ColorName
+): [CA | null, 'HSL' | 'RGB' | null] {
+	if (Object.prototype.hasOwnProperty.call(cssColors, colorStr)) {
+		return [cssColors[colorStr] as CA, 'RGB'];
+	}
 	const type = colorTest(colorStr);
 	switch (type) {
 		case 'RGB':
-			return [type, parseRGB(colorStr)];
+			return [parseRGB(colorStr), 'RGB'];
 		case 'HSL':
-			return [type, parseHSL(colorStr)];
+			return [parseHSL(colorStr), 'RGB'];
 		case 'HEX':
-			return ['RGB', parseHEX(colorStr)];
+			return [parseHEX(colorStr), 'RGB'];
 		default:
 			return [null, null];
 	}
@@ -571,10 +574,7 @@ export function HSLToString(...values: number[]) {
  */
 export function Color(colorStr: ColorName | string) {
 	let [rgba, hsla] = (() => {
-		if (Object.prototype.hasOwnProperty.call(cssColors, colorStr)) {
-			return cssColors[colorStr];
-		}
-		const [type, parsed] = parseColor(colorStr);
+		const [parsed, type] = parseColor(colorStr);
 		return !type || !parsed
 			? [RGBArray(), HSLArray()]
 			: type === 'HSL'
