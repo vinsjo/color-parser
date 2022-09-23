@@ -31,6 +31,8 @@ export type ColorInstance = {
 	sub: (color: CA, type?: ColorArrayType) => void;
 	mult: (color: CA, type?: ColorArrayType) => void;
 	div: (color: CA, type?: ColorArrayType) => void;
+	inverted: () => ColorInstance;
+	clone: () => ColorInstance;
 	toString: (outputMode?: ColorStringType) => string;
 };
 //#endregion
@@ -693,6 +695,10 @@ export function Color(colorStr: ColorName | string) {
 				get: () => RGBToHEX(...rgba),
 				set: (hexStr: string) => setHEX(hexStr),
 			},
+			inverted: {
+				value: () => Color(RGBToString(...invertRGB(...rgba))),
+			},
+			clone: { value: () => Color(RGBToString(...rgba)) },
 			onChange: {
 				get: () => onChange || undefined,
 				set: (callbackfn: ColorChangeCallback | null) => {
